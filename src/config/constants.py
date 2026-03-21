@@ -35,6 +35,7 @@ class EmailServiceType(str, Enum):
     OUTLOOK = "outlook"
     CUSTOM_DOMAIN = "custom_domain"
     TEMP_MAIL = "temp_mail"
+    DUCK_MAIL = "duck_mail"
 
 
 # ============================================================================
@@ -93,6 +94,15 @@ CUSTOM_DOMAIN_API_ENDPOINTS = {
     "get_message": "/api/emails/{emailId}/{messageId}",
 }
 
+# DuckMail (mail.tm 兼容) API 端点
+DUCK_MAIL_API_ENDPOINTS = {
+    "get_domains": "/domains",
+    "create_account": "/accounts",
+    "get_token": "/token",
+    "get_messages": "/messages",
+    "get_message": "/messages/{messageId}",
+}
+
 # 邮箱服务默认配置
 EMAIL_SERVICE_DEFAULTS = {
     "tempmail": {
@@ -110,6 +120,15 @@ EMAIL_SERVICE_DEFAULTS = {
     "custom_domain": {
         "base_url": "",  # 需要用户配置
         "api_key_header": "X-API-Key",
+        "timeout": 30,
+        "max_retries": 3,
+    },
+    "duck_mail": {
+        "base_url": "",      # 需要用户配置（直连模式）
+        "domain": "",        # 需要用户配置
+        "mode": "direct",    # direct | proxied
+        "proxy_url": "",     # 代理模式：Netlify 服务地址
+        "worker_url": "",    # 代理模式：可选，覆盖 Netlify 默认 Worker 地址
         "timeout": 30,
         "max_retries": 3,
     }

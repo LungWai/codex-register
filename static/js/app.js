@@ -19,6 +19,7 @@ let batchFinalStatus = null;  // 保存批量任务的最终状态
 let displayedLogs = new Set();  // 用于日志去重
 let toastShown = false;  // 标记是否已显示过 toast
 let availableServices = {
+    duck_mail: { available: true, services: [] },
     tempmail: { available: true, services: [] },
     outlook: { available: false, services: [] },
     custom_domain: { available: false, services: [] },
@@ -238,6 +239,25 @@ async function loadAvailableServices() {
 function updateEmailServiceOptions() {
     const select = elements.emailService;
     select.innerHTML = '';
+
+    // DuckMail
+    if (availableServices.duck_mail && availableServices.duck_mail.available) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = `🦆 DuckMail (${availableServices.duck_mail.count || availableServices.duck_mail.services.length} 个服务)`;
+
+        availableServices.duck_mail.services.forEach(service => {
+            const option = document.createElement('option');
+            option.value = `duck_mail:${service.id || 'default'}`;
+            option.textContent = service.name + (service.domain ? ` (@${service.domain})` : '');
+            option.dataset.type = 'duck_mail';
+            if (service.id) {
+                option.dataset.serviceId = service.id;
+            }
+            optgroup.appendChild(option);
+        });
+
+        select.appendChild(optgroup);
+    }
 
     // Tempmail
     if (availableServices.tempmail.available) {

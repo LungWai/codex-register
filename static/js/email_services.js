@@ -132,6 +132,18 @@ function initEventListeners() {
     // 类型切换（添加表单）
     elements.customSubType.addEventListener('change', (e) => switchAddSubType(e.target.value));
 
+    // DuckMail 模式切换（添加表单）
+    const addDmMode = document.getElementById('custom-dm-mode');
+    if (addDmMode) {
+        addDmMode.addEventListener('change', (e) => switchAddDmMode(e.target.value));
+    }
+
+    // DuckMail 模式切换（编辑表单）
+    const editDmMode = document.getElementById('edit-dm-mode');
+    if (editDmMode) {
+        editDmMode.addEventListener('change', (e) => switchEditDmMode(e.target.value));
+    }
+
     // 编辑自定义域名
     elements.closeEditCustomModal.addEventListener('click', () => elements.editCustomModal.classList.remove('active'));
     elements.cancelEditCustom.addEventListener('click', () => elements.editCustomModal.classList.remove('active'));
@@ -150,22 +162,42 @@ function initEventListeners() {
 // 切换添加表单子类型
 function switchAddSubType(subType) {
     elements.customSubType.value = subType;
-    if (subType === 'moemail') {
-        elements.addMoemailFields.style.display = '';
-        elements.addTempmailFields.style.display = 'none';
-    } else {
-        elements.addMoemailFields.style.display = 'none';
-        elements.addTempmailFields.style.display = '';
-    }
+    const addDuckmailFields = document.getElementById('add-duckmail-fields');
+    elements.addMoemailFields.style.display = subType === 'moemail' ? '' : 'none';
+    elements.addTempmailFields.style.display = subType === 'tempmail' ? '' : 'none';
+    if (addDuckmailFields) addDuckmailFields.style.display = subType === 'duckmail' ? '' : 'none';
+}
+
+// DuckMail 添加表单模式切换
+function switchAddDmMode(mode) {
+    const directFields = document.getElementById('add-dm-direct-fields');
+    const proxiedFields = document.getElementById('add-dm-proxied-fields');
+    if (directFields) directFields.style.display = mode === 'direct' ? '' : 'none';
+    if (proxiedFields) proxiedFields.style.display = mode === 'proxied' ? '' : 'none';
+}
+
+// DuckMail 编辑表单模式切换
+function switchEditDmMode(mode) {
+    const directFields = document.getElementById('edit-dm-direct-fields');
+    const proxiedFields = document.getElementById('edit-dm-proxied-fields');
+    if (directFields) directFields.style.display = mode === 'direct' ? '' : 'none';
+    if (proxiedFields) proxiedFields.style.display = mode === 'proxied' ? '' : 'none';
 }
 
 // 切换编辑表单子类型显示
 function switchEditSubType(subType) {
     elements.editCustomSubTypeHidden.value = subType;
-    const isMoe = subType === 'moemail';
-    elements.editMoemailFields.style.display = isMoe ? '' : 'none';
-    elements.editTempmailFields.style.display = isMoe ? 'none' : '';
-    elements.editCustomTypeBadge.textContent = isMoe ? '🔗 MoeMail（自定义域名 API）' : '📮 TempMail（自部署 Cloudflare Worker）';
+    elements.editMoemailFields.style.display = subType === 'moemail' ? '' : 'none';
+    elements.editTempmailFields.style.display = subType === 'tempmail' ? '' : 'none';
+    const editDuckmailFields = document.getElementById('edit-duckmail-fields');
+    if (editDuckmailFields) editDuckmailFields.style.display = subType === 'duckmail' ? '' : 'none';
+
+    const labels = {
+        moemail: '🔗 MoeMail（自定义域名 API）',
+        tempmail: '📮 TempMail（自部署 Cloudflare Worker）',
+        duckmail: '🦆 DuckMail（mail.tm 兼容 Worker）',
+    };
+    elements.editCustomTypeBadge.textContent = labels[subType] || subType;
 }
 
 // 加载统计信息
@@ -173,7 +205,7 @@ async function loadStats() {
     try {
         const data = await api.get('/email-services/stats');
         elements.outlookCount.textContent = data.outlook_count || 0;
-        elements.customCount.textContent = (data.custom_count || 0) + (data.temp_mail_count || 0);
+        elements.customCount.textContent = (data.custom_count || 0) + (data.temp_mail_count || 0) + (data.duck_mail_count || 0);
         elements.tempmailStatus.textContent = data.tempmail_available ? '可用' : '不可用';
         elements.totalEnabled.textContent = data.enabled_count || 0;
     } catch (error) {
@@ -244,16 +276,18 @@ async function loadOutlookServices() {
     }
 }
 
-// 加载自定义域名服务（custom_domain + temp_mail 合并）
+// 加载自定义域名服务（custom_domain + temp_mail + duck_mail 合并）
 async function loadCustomServices() {
     try {
-        const [r1, r2] = await Promise.all([
+        const [r1, r2, r3] = await Promise.all([
             api.get('/email-services?service_type=custom_domain'),
-            api.get('/email-services?service_type=temp_mail')
+            api.get('/email-services?service_type=temp_mail'),
+            api.get('/email-services?service_type=duck_mail')
         ]);
         customServices = [
             ...(r1.services || []).map(s => ({ ...s, _subType: 'moemail' })),
-            ...(r2.services || []).map(s => ({ ...s, _subType: 'tempmail' }))
+            ...(r2.services || []).map(s => ({ ...s, _subType: 'tempmail' })),
+            ...(r3.services || []).map(s => ({ ...s, _subType: 'duckmail' }))
         ];
 
         if (customServices.length === 0) {
@@ -272,9 +306,17 @@ async function loadCustomServices() {
         }
 
         elements.customTable.innerHTML = customServices.map(service => {
-            const isMoe = service._subType === 'moemail';
-            const typeLabel = isMoe ? '<span class="status-badge info">MoeMail</span>' : '<span class="status-badge warning">TempMail</span>';
-            const addr = isMoe ? (service.config?.base_url || '-') : (service.config?.base_url || '-');
+            const typeLabels = {
+                moemail: '<span class="status-badge info">MoeMail</span>',
+                tempmail: '<span class="status-badge warning">TempMail</span>',
+                duckmail: '<span class="status-badge active">DuckMail</span>',
+            };
+            const typeLabel = typeLabels[service._subType] || service._subType;
+            let addr = service.config?.base_url || '-';
+            if (service._subType === 'duckmail') {
+                const mode = service.config?.mode || 'direct';
+                addr = mode === 'proxied' ? (service.config?.proxy_url || '-') : (service.config?.base_url || '-');
+            }
             return `
             <tr data-id="${service.id}">
                 <td><input type="checkbox" data-id="${service.id}" ${selectedCustom.has(service.id) ? 'checked' : ''}></td>
@@ -373,6 +415,21 @@ async function handleAddCustom(e) {
             api_key: formData.get('api_key'),
             default_domain: formData.get('domain')
         };
+    } else if (subType === 'duckmail') {
+        serviceType = 'duck_mail';
+        const mode = formData.get('dm_mode') || 'direct';
+        config = {
+            mode: mode,
+            domain: formData.get('dm_domain'),
+        };
+        if (mode === 'proxied') {
+            config.proxy_url = formData.get('dm_proxy_url');
+            config.worker_url = formData.get('dm_worker_url') || '';
+        } else {
+            config.base_url = formData.get('dm_base_url');
+        }
+        const pw = formData.get('dm_password');
+        if (pw && pw.trim()) config.password = pw.trim();
     } else {
         serviceType = 'temp_mail';
         config = {
@@ -512,11 +569,16 @@ function escapeHtml(text) {
 
 // ============== 编辑功能 ==============
 
-// 编辑自定义域名服务（支持 moemail / tempmail）
+// 编辑自定义域名服务（支持 moemail / tempmail / duckmail）
 async function editCustomService(id, subType) {
     try {
         const service = await api.get(`/email-services/${id}/full`);
-        const resolvedSubType = subType || (service.service_type === 'temp_mail' ? 'tempmail' : 'moemail');
+        let resolvedSubType = subType;
+        if (!resolvedSubType) {
+            if (service.service_type === 'duck_mail') resolvedSubType = 'duckmail';
+            else if (service.service_type === 'temp_mail') resolvedSubType = 'tempmail';
+            else resolvedSubType = 'moemail';
+        }
 
         document.getElementById('edit-custom-id').value = service.id;
         document.getElementById('edit-custom-name').value = service.name || '';
@@ -530,6 +592,16 @@ async function editCustomService(id, subType) {
             document.getElementById('edit-custom-api-key').value = '';
             document.getElementById('edit-custom-api-key').placeholder = service.config?.has_api_key ? '已设置，留空保持不变' : 'API Key';
             document.getElementById('edit-custom-domain').value = service.config?.default_domain || service.config?.domain || '';
+        } else if (resolvedSubType === 'duckmail') {
+            const mode = service.config?.mode || 'direct';
+            document.getElementById('edit-dm-mode').value = mode;
+            switchEditDmMode(mode);
+            document.getElementById('edit-dm-base-url').value = service.config?.base_url || '';
+            document.getElementById('edit-dm-proxy-url').value = service.config?.proxy_url || '';
+            document.getElementById('edit-dm-worker-url').value = service.config?.worker_url || '';
+            document.getElementById('edit-dm-domain').value = service.config?.domain || '';
+            document.getElementById('edit-dm-password').value = '';
+            document.getElementById('edit-dm-password').placeholder = service.config?.password ? '已设置，留空保持不变' : '留空自动生成';
         } else {
             document.getElementById('edit-tm-base-url').value = service.config?.base_url || '';
             document.getElementById('edit-tm-admin-password').value = '';
@@ -558,6 +630,20 @@ async function handleEditCustom(e) {
         };
         const apiKey = formData.get('api_key');
         if (apiKey && apiKey.trim()) config.api_key = apiKey.trim();
+    } else if (subType === 'duckmail') {
+        const mode = formData.get('dm_mode') || 'direct';
+        config = {
+            mode: mode,
+            domain: formData.get('dm_domain'),
+        };
+        if (mode === 'proxied') {
+            config.proxy_url = formData.get('dm_proxy_url');
+            config.worker_url = formData.get('dm_worker_url') || '';
+        } else {
+            config.base_url = formData.get('dm_base_url');
+        }
+        const pw = formData.get('dm_password');
+        if (pw && pw.trim()) config.password = pw.trim();
     } else {
         config = {
             base_url: formData.get('tm_base_url'),

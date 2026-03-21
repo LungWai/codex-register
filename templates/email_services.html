@@ -209,6 +209,7 @@
                         <select id="custom-sub-type" name="sub_type">
                             <option value="moemail">MoeMail（自定义域名 API）</option>
                             <option value="tempmail">TempMail（自部署 Cloudflare Worker）</option>
+                            <option value="duckmail">DuckMail（mail.tm 兼容 Worker）</option>
                         </select>
                     </div>
                     <!-- MoeMail 字段 -->
@@ -239,6 +240,41 @@
                         <div class="form-group">
                             <label for="custom-tm-domain">邮箱域名</label>
                             <input type="text" id="custom-tm-domain" name="tm_domain" placeholder="example.com">
+                        </div>
+                    </div>
+                    <!-- DuckMail 字段 -->
+                    <div id="add-duckmail-fields" style="display:none;">
+                        <div class="form-group">
+                            <label for="custom-dm-mode">连接模式</label>
+                            <select id="custom-dm-mode" name="dm_mode">
+                                <option value="direct">直连 Worker</option>
+                                <option value="proxied">经 Netlify 代理</option>
+                            </select>
+                        </div>
+                        <div id="add-dm-direct-fields">
+                            <div class="form-group">
+                                <label for="custom-dm-base-url">Worker 地址</label>
+                                <input type="text" id="custom-dm-base-url" name="dm_base_url" placeholder="https://mail.example.workers.dev">
+                            </div>
+                        </div>
+                        <div id="add-dm-proxied-fields" style="display:none;">
+                            <div class="form-group">
+                                <label for="custom-dm-proxy-url">代理服务地址</label>
+                                <input type="text" id="custom-dm-proxy-url" name="dm_proxy_url" placeholder="https://your-app.netlify.app">
+                            </div>
+                            <div class="form-group">
+                                <label for="custom-dm-worker-url">Worker 地址覆盖（可选）</label>
+                                <input type="text" id="custom-dm-worker-url" name="dm_worker_url" placeholder="留空使用代理服务默认值">
+                                <small style="color: var(--text-muted);">留空时代理服务将使用自身环境变量中配置的 Worker 地址</small>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-dm-domain">邮箱域名</label>
+                            <input type="text" id="custom-dm-domain" name="dm_domain" placeholder="example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-dm-password">账户默认密码（可选）</label>
+                            <input type="password" id="custom-dm-password" name="dm_password" placeholder="留空自动生成">
                         </div>
                     </div>
                     <div class="form-row">
@@ -312,6 +348,42 @@
                         <div class="form-group">
                             <label for="edit-tm-domain">邮箱域名</label>
                             <input type="text" id="edit-tm-domain" name="tm_domain" placeholder="example.com">
+                        </div>
+                    </div>
+                    <!-- DuckMail 字段 -->
+                    <div id="edit-duckmail-fields" style="display:none;">
+                        <div class="form-group">
+                            <label for="edit-dm-mode">连接模式</label>
+                            <select id="edit-dm-mode" name="dm_mode">
+                                <option value="direct">直连 Worker</option>
+                                <option value="proxied">经 Netlify 代理</option>
+                            </select>
+                        </div>
+                        <div id="edit-dm-direct-fields">
+                            <div class="form-group">
+                                <label for="edit-dm-base-url">Worker 地址</label>
+                                <input type="text" id="edit-dm-base-url" name="dm_base_url" placeholder="https://mail.example.workers.dev">
+                            </div>
+                        </div>
+                        <div id="edit-dm-proxied-fields" style="display:none;">
+                            <div class="form-group">
+                                <label for="edit-dm-proxy-url">代理服务地址</label>
+                                <input type="text" id="edit-dm-proxy-url" name="dm_proxy_url" placeholder="https://your-app.netlify.app">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-dm-worker-url">Worker 地址覆盖（可选）</label>
+                                <input type="text" id="edit-dm-worker-url" name="dm_worker_url" placeholder="留空使用代理服务默认值">
+                                <small style="color: var(--text-muted);">留空时代理服务将使用自身环境变量中配置的 Worker 地址</small>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-dm-domain">邮箱域名</label>
+                            <input type="text" id="edit-dm-domain" name="dm_domain" placeholder="example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-dm-password">账户默认密码</label>
+                            <input type="password" id="edit-dm-password" name="dm_password" placeholder="留空则保持原值不变">
+                            <small style="color: var(--text-muted);">留空则保持原值不变</small>
                         </div>
                     </div>
                     <div class="form-row">

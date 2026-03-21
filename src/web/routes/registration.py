@@ -67,7 +67,7 @@ def update_proxy_usage(db, proxy_id: Optional[int]):
 
 class RegistrationTaskCreate(BaseModel):
     """创建注册任务请求"""
-    email_service_type: str = "tempmail"
+    email_service_type: str = "duck_mail"
     proxy: Optional[str] = None
     email_service_config: Optional[dict] = None
     email_service_id: Optional[int] = None
@@ -82,7 +82,7 @@ class RegistrationTaskCreate(BaseModel):
 class BatchRegistrationRequest(BaseModel):
     """批量注册请求"""
     count: int = 1
-    email_service_type: str = "tempmail"
+    email_service_type: str = "duck_mail"
     proxy: Optional[str] = None
     email_service_config: Optional[dict] = None
     email_service_id: Optional[int] = None
@@ -208,7 +208,7 @@ def _normalize_email_service_config(
     if service_type == EmailServiceType.CUSTOM_DOMAIN:
         if 'domain' in normalized and 'default_domain' not in normalized:
             normalized['default_domain'] = normalized.pop('domain')
-    elif service_type == EmailServiceType.TEMP_MAIL:
+    elif service_type in (EmailServiceType.TEMP_MAIL, EmailServiceType.DUCK_MAIL):
         if 'default_domain' in normalized and 'domain' not in normalized:
             normalized['domain'] = normalized.pop('default_domain')
 
@@ -341,6 +341,34 @@ def _run_sync_registration_task(task_uuid: str, email_service_type: str, proxy: 
                         logger.info(f"使用数据库 Outlook 账户: {selected_service.name}")
                     else:
                         raise ValueError("所有 Outlook 账户都已注册过 OpenAI 账号，请添加新的 Outlook 账户")
+                elif service_type == EmailServiceType.DUCK_MAIL:
+                    from ...database.models import EmailService as EmailServiceModel
+                    db_service = db.query(EmailServiceModel).filter(
+                        EmailServiceModel.service_type == "duck_mail",
+                        EmailServiceModel.enabled == True
+                    ).order_by(EmailServiceModel.priority.asc()).first()
+
+                    if db_service and db_service.config:
+                        config = _normalize_email_service_config(service_type, db_service.config, actual_proxy_url)
+                        crud.update_registration_task(db, task_uuid, email_service_id=db_service.id)
+                        logger.info(f"使用数据库 DuckMail 服务: {db_service.name}")
+                    elif settings.duck_mail_mode == "proxied" and settings.duck_mail_proxy_url and settings.duck_mail_domain:
+                        config = {
+                            "mode": "proxied",
+                            "proxy_url": settings.duck_mail_proxy_url,
+                            "worker_url": settings.duck_mail_worker_url or "",
+                            "domain": settings.duck_mail_domain,
+                            "password": settings.duck_mail_password.get_secret_value() if settings.duck_mail_password else "",
+                        }
+                    elif settings.duck_mail_base_url and settings.duck_mail_domain:
+                        config = {
+                            "mode": "direct",
+                            "base_url": settings.duck_mail_base_url,
+                            "domain": settings.duck_mail_domain,
+                            "password": settings.duck_mail_password.get_secret_value() if settings.duck_mail_password else "",
+                        }
+                    else:
+                        raise ValueError("没有可用的 DuckMail 邮箱服务，请先在设置中配置")
                 else:
                     config = email_service_config or {}
 
@@ -1069,6 +1097,11 @@ async def get_available_email_services():
             "available": False,
             "count": 0,
             "services": []
+        },
+        "duck_mail": {
+            "available": False,
+            "count": 0,
+            "services": []
         }
     }
 
@@ -1141,6 +1174,38 @@ async def get_available_email_services():
 
         result["temp_mail"]["count"] = len(temp_mail_services)
         result["temp_mail"]["available"] = len(temp_mail_services) > 0
+
+        # 获取 DuckMail 服务（mail.tm 兼容 Cloudflare Worker 临时邮箱）
+        duck_mail_services = db.query(EmailServiceModel).filter(
+            EmailServiceModel.service_type == "duck_mail",
+            EmailServiceModel.enabled == True
+        ).order_by(EmailServiceModel.priority.asc()).all()
+
+        for service in duck_mail_services:
+            config = service.config or {}
+            result["duck_mail"]["services"].append({
+                "id": service.id,
+                "name": service.name,
+                "type": "duck_mail",
+                "domain": config.get("domain"),
+                "priority": service.priority
+            })
+
+        result["duck_mail"]["count"] = len(duck_mail_services)
+        result["duck_mail"]["available"] = len(duck_mail_services) > 0
+
+        # 如果数据库中没有 DuckMail 服务，检查 settings
+        if not result["duck_mail"]["available"]:
+            if settings.duck_mail_base_url and settings.duck_mail_domain:
+                result["duck_mail"]["available"] = True
+                result["duck_mail"]["count"] = 1
+                result["duck_mail"]["services"].append({
+                    "id": None,
+                    "name": "默认 DuckMail 服务",
+                    "type": "duck_mail",
+                    "domain": settings.duck_mail_domain,
+                    "from_settings": True
+                })
 
     return result
 

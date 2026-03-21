@@ -144,6 +144,7 @@ async def get_email_services_stats():
             'outlook_count': 0,
             'custom_count': 0,
             'temp_mail_count': 0,
+            'duck_mail_count': 0,
             'tempmail_available': True,  # 临时邮箱始终可用
             'enabled_count': enabled_count
         }
@@ -155,6 +156,8 @@ async def get_email_services_stats():
                 stats['custom_count'] = count
             elif service_type == 'temp_mail':
                 stats['temp_mail_count'] = count
+            elif service_type == 'duck_mail':
+                stats['duck_mail_count'] = count
 
         return stats
 
@@ -203,6 +206,26 @@ async def get_service_types():
                     {"name": "admin_password", "label": "Admin 密码", "required": True, "secret": True},
                     {"name": "domain", "label": "邮箱域名", "required": True, "placeholder": "example.com"},
                     {"name": "enable_prefix", "label": "启用前缀", "required": False, "default": True},
+                ]
+            },
+            {
+                "value": "duck_mail",
+                "label": "DuckMail（mail.tm 兼容）",
+                "description": "自部署 Cloudflare Worker 临时邮箱，mail.tm 兼容 API。支持直连或经 Netlify 代理两种模式。",
+                "config_fields": [
+                    {"name": "mode", "label": "连接模式", "required": True, "default": "direct",
+                     "type": "select", "options": [
+                         {"value": "direct", "label": "直连 Worker"},
+                         {"value": "proxied", "label": "经 Netlify 代理"},
+                     ]},
+                    {"name": "base_url", "label": "Worker 地址", "required": False, "placeholder": "https://mail.example.workers.dev",
+                     "show_when": {"mode": "direct"}},
+                    {"name": "proxy_url", "label": "代理服务地址", "required": False, "placeholder": "https://your-app.netlify.app",
+                     "show_when": {"mode": "proxied"}},
+                    {"name": "worker_url", "label": "Worker 地址覆盖（可选）", "required": False, "placeholder": "留空使用代理服务默认值",
+                     "show_when": {"mode": "proxied"}},
+                    {"name": "domain", "label": "邮箱域名", "required": True, "placeholder": "example.com"},
+                    {"name": "password", "label": "账户默认密码", "required": False, "secret": True, "placeholder": "留空自动生成"},
                 ]
             }
         ]

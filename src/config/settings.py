@@ -23,6 +23,7 @@ class SettingCategory(str, Enum):
     EMAIL = "email"
     TEMPMAIL = "tempmail"
     CUSTOM_DOMAIN = "custom_domain"
+    DUCK_MAIL = "duck_mail"
     SECURITY = "security"
     CPA = "cpa"
 
@@ -252,7 +253,7 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
     # 邮箱服务配置
     "email_service_priority": SettingDefinition(
         db_key="email.service_priority",
-        default_value={"tempmail": 0, "outlook": 1, "custom_domain": 2},
+        default_value={"duck_mail": 0, "tempmail": 1, "outlook": 2, "custom_domain": 3},
         category=SettingCategory.EMAIL,
         description="邮箱服务优先级"
     ),
@@ -290,6 +291,45 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
         category=SettingCategory.CUSTOM_DOMAIN,
         description="自定义域名 API 密钥",
         is_secret=True
+    ),
+
+    # DuckMail 配置
+    "duck_mail_base_url": SettingDefinition(
+        db_key="duck_mail.base_url",
+        default_value="",
+        category=SettingCategory.DUCK_MAIL,
+        description="DuckMail Worker 地址（直连模式）"
+    ),
+    "duck_mail_domain": SettingDefinition(
+        db_key="duck_mail.domain",
+        default_value="",
+        category=SettingCategory.DUCK_MAIL,
+        description="DuckMail 邮箱域名"
+    ),
+    "duck_mail_password": SettingDefinition(
+        db_key="duck_mail.password",
+        default_value="",
+        category=SettingCategory.DUCK_MAIL,
+        description="DuckMail 账户默认密码（留空自动生成）",
+        is_secret=True
+    ),
+    "duck_mail_mode": SettingDefinition(
+        db_key="duck_mail.mode",
+        default_value="direct",
+        category=SettingCategory.DUCK_MAIL,
+        description="DuckMail 连接模式（direct=直连 Worker / proxied=经 Netlify 代理）"
+    ),
+    "duck_mail_proxy_url": SettingDefinition(
+        db_key="duck_mail.proxy_url",
+        default_value="",
+        category=SettingCategory.DUCK_MAIL,
+        description="DuckMail 代理服务地址（代理模式使用，如 Netlify 部署地址）"
+    ),
+    "duck_mail_worker_url": SettingDefinition(
+        db_key="duck_mail.worker_url",
+        default_value="",
+        category=SettingCategory.DUCK_MAIL,
+        description="DuckMail Worker 地址覆盖（代理模式可选，通过 header 传给代理服务）"
     ),
 
     # 安全配置
@@ -675,6 +715,14 @@ class Settings(BaseModel):
     # 自定义域名邮箱配置
     custom_domain_base_url: str = ""
     custom_domain_api_key: Optional[SecretStr] = None
+
+    # DuckMail 配置
+    duck_mail_base_url: str = ""
+    duck_mail_domain: str = ""
+    duck_mail_password: Optional[SecretStr] = None
+    duck_mail_mode: str = "direct"
+    duck_mail_proxy_url: str = ""
+    duck_mail_worker_url: str = ""
 
     # 安全配置
     encryption_key: SecretStr = SecretStr("your-encryption-key-change-in-production")
